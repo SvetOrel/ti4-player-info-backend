@@ -1,15 +1,69 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-}
+// prisma/schema.prisma
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Player {
+  id      String               @id @default(uuid())
+  name    String               @unique
+  entries GamePlayerFaction[]
+
+  @@map("players")
+}
+
+model Faction {
+  id      String               @id @default(uuid())
+  name    String               @unique
+  entries GamePlayerFaction[]
+
+  @@map("factions")
+}
+
+model League {
+  id        String   @id @default(uuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  games     Game[]
+
+  @@map("leagues")
+}
+
+model Game {
+  id         String   @id @default(uuid())
+  leagueId   String
+  league     League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  gameDate   DateTime
+  isLongGame Boolean  @default(false)
+  winPoints  Int      @default(10)
+  endRound   Int?
+  entries    GamePlayerFaction[]
+
+  @@index([leagueId, gameDate])
+  @@map("games")
+}
+
+model GamePlayerFaction {
+  id        String  @id @default(uuid())
+  gameId    String
+  playerId  String
+  factionId String
+  points    Int
+
+  game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player  Player  @relation(fields: [playerId], references: [id])
+  faction Faction @relation(fields: [factionId], references: [id])
+
+  @@unique([gameId, playerId])
+  @@unique([gameId, factionId])
+  @@index([gameId])
+  @@index([playerId])
+  @@index([factionId])
+  @@map("game_player_factions")
 }
