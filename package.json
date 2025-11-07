@@ -1,26 +1,30 @@
 {
   "name": "ti4-player-info-backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+   "version": "1.0.0",
+  "type": "module",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "echo \"(add eslint later)\"",
+    "prisma:generate": "prisma generate --config=./prisma.config.ts",
+    "prisma:migrate": "prisma migrate dev --name init --config=./prisma.config.ts",
+    "prisma:studio": "prisma studio --config=./prisma.config.ts",
+    "seed": "tsx prisma/seed.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@fastify/cors": "^11.1.0",
     "@fastify/swagger": "^9.5.2",
     "@fastify/swagger-ui": "^5.2.3",
     "@prisma/client": "^6.18.0",
-    "dotenv": "^17.2.3",
     "fastify": "^5.6.1",
-    "prisma": "^6.18.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",
+    "dotenv": "^17.2.3",
+    "prisma": "^6.18.0",
     "eslint": "^9.38.0",
     "rimraf": "^6.1.0",
     "ts-node": "^10.9.2",
@@ -28,5 +32,6 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.6"
-  }
+  },
+  "engines": { "node": ">=22" }
 }
