@@ -1,5 +1,5 @@
 // Import the type FastifyInstance so TypeScript knows what "app" looks like.
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 
 // Import PrismaClient to talk to your PostgreSQL database.
 import { PrismaClient } from '@prisma/client';
@@ -94,32 +94,32 @@ export async function leaguesRoutes(app: FastifyInstance) {
       ORDER BY "playerName"
     `;
 
-    // 2️⃣1️⃣ Save to Redis so next time it loads instantly.
+    // Save to Redis so next time it loads instantly.
     await cacheSet(key, rows);
 
-    // 2️⃣2️⃣ Return results from the database.
+    // Return results from the database.
     return rows;
   });
 
   // -------------------------------------------------------------
   // ROUTE 4: GET /leagues/:leagueId/standings
   // -------------------------------------------------------------
-  // 2️⃣3️⃣ This route returns the total points per player for the season.
+  // This route returns the total points per player for the season.
   app.get<{
     Params: { leagueId: string }
   }>('/leagues/:leagueId/standings', async (req) => {
 
-    // 2️⃣4️⃣ Extract leagueId from URL.
+    //  Extract leagueId from URL.
     const { leagueId } = req.params;
 
-    // 2️⃣5️⃣ Cache key for standings.
+    // Cache key for standings.
     const key = `league:${leagueId}:standings`;
 
-    // 2️⃣6️⃣ Try Redis first.
+    // Try Redis first.
     const cached = await cacheGet<any[]>(key);
     if (cached) return cached;
 
-    // 2️⃣7️⃣ Query DB:
+    // Query DB:
     // Sum all points for each player across the whole league.
     const rows = await prisma.$queryRaw<
       Array<{ playername: string; totalpoints: number }>
@@ -135,10 +135,10 @@ export async function leaguesRoutes(app: FastifyInstance) {
       ORDER BY "totalPoints" DESC, p.name
     `;
 
-    // 2️⃣8️⃣ Save standings to Redis.
+    // Save standings to Redis.
     await cacheSet(key, rows);
 
-    // 2️⃣9️⃣ Return fresh data.
+    // Return fresh data.
     return rows;
   });
 }
