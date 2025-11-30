@@ -1,6 +1,6 @@
 {
   "name": "ti4-player-info-backend",
-   "version": "1.0.0",
+  "version": "1.0.0",
   "type": "module",
   "private": true,
   "scripts": {
@@ -18,14 +18,15 @@
     "@fastify/swagger": "^9.5.2",
     "@fastify/swagger-ui": "^5.2.3",
     "@prisma/client": "^6.18.0",
+    "@upstash/redis": "^1.35.6",
     "fastify": "^5.6.1",
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/node": "^24.9.2",
+    "@types/node": "^24.10.0",
     "dotenv": "^17.2.3",
-    "prisma": "^6.18.0",
     "eslint": "^9.38.0",
+    "prisma": "^6.18.0",
     "rimraf": "^6.1.0",
     "ts-node": "^10.9.2",
     "tsup": "^8.5.0",
@@ -33,5 +34,7 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.6"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }
