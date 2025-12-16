@@ -2,7 +2,6 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -57,8 +56,8 @@ model GamePlayerFaction {
   points    Int
 
   game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  player  Player  @relation(fields: [playerId], references: [id])
-  faction Faction @relation(fields: [factionId], references: [id])
+  player  Player  @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  faction Faction @relation(fields: [factionId], references: [id], onDelete: Restrict)
 
   @@unique([gameId, playerId])
   @@unique([gameId, factionId])
