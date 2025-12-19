@@ -1,52 +1,79 @@
-// Load environment variables from the .env file (so process.env works)
 import 'dotenv/config';
+import Fastify, { fastify } from 'fastify';
 
-// Import Fastify (our web framework)
-import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import swagger from '@fastify/swagger'; 
+import swaggerUi from '@fastify/swagger-ui';
 
-// Import useful Fastify plugins
-import cors from '@fastify/cors'; // Allows API requests from other domains (like your frontend)
-import swagger from '@fastify/swagger'; // Automatically generates OpenAPI (API documentation)
-import swaggerUi from '@fastify/swagger-ui'; // Provides a web page at /docs to view/test API
+import { prismaClient } from './db/prisma'; 
+import { redisClient } from './cache/redis';
+//import { leaguesRoutes } from './routes/leagues.js';
 
-// Import your routes (separated for clarity)
-import { leaguesRoutes } from './routes/leagues.js';
+const PORT = Number(process.env.PORT ?? 3000);
+const HOST = '0.0.0.0';
 
-// Create a new Fastify application instance with built-in logger
-const app = Fastify({ logger: true });
 
-// Register the CORS plugin so browsers can call your API from other origins
-// For example, your future frontend hosted on Vercel will be allowed.
-await app.register(cors, { origin: true });
-
-// Register Swagger (OpenAPI) documentation generator
-await app.register(swagger, {
-  openapi: {
-    info: { title: 'TI4 API', version: '1.0.0' }  // Meta info visible in /docs
-  }
-});
-
-// Register the Swagger-UI plugin
-// This provides a pretty HTML interface at /docs to explore your endpoints.
-await app.register(swaggerUi, { routePrefix: '/docs' });
-
-// A simple health-check route.
-// Used by you or hosting (Render) to confirm the server is alive.
-app.get('/health', async () => ({ ok: true }));
-
-// Register your main routes file (it contains /leagues, /standings, etc.)
-await app.register(leaguesRoutes);
-
-// Define the port (from .env or default 3000)
-const port = Number(process.env.PORT ?? 3000);
-
-// Always listen on all interfaces (important for cloud deployment)
-const host = '0.0.0.0';
-
-// Start the Fastify server
-app.listen({ port, host })
-  .catch((err) => {
-    // If startup fails, log the error and exit the process
-    app.log.error(err);
-    process.exit(1);
+async function buildApp() {
+  const fastify = Fastify({ 
+    logger: true 
   });
+
+  await fastify.register(cors, { 
+    origin: '*',
+    methods: ['GET']
+  });
+
+  await fastify.register(swagger, {
+    swagger: {
+      info: {
+        title: 'TI4 Player Info API',
+        description: 'Read-only API for Twilight Imperium 4 player and league data.',
+        version: '1.0.0',
+      },
+      externalDocs: {
+        url: 'https://swagger.io',
+        description: 'Find more info here'
+      },
+      host: `localhost:${PORT}`, // Default host for local development
+      schemes: ['http'],
+      consumes: ['application/json'],
+      produces: ['application/json'],
+    },
+  });
+
+  await fastify.register(swaggerUi, { routePrefix: '/docs' });
+
+  fastify.decorate('prisma', prismaClient);
+  fastify.decorate('redis', redisClient);
+
+  return fastify;
+}
+
+async function startServer() {
+  const fastify = await buildApp();
+
+  try{
+    await fastify.listen({ port:PORT, host:HOST })
+    fastify.log.info(`Server listening on ${HOST}:${PORT}`);
+    fastify.log.info(`Documentation available at http://${HOST}:${PORT}/documentation`);
+
+
+  }catch(err){
+    fastify.log.error(err);
+    // Cleanup database and redis connections on error
+    await prismaClient.$disconnect();
+    //redisClient.quit();
+    process.exit(1);
+  }
+}
+
+startServer();
+
+// Add Fastify Decorator types so TypeScript knows about 'prisma' and 'redis'
+// This is critical for type safety in your application
+declare module 'fastify' {
+  interface FastifyInstance {
+    prisma: typeof prismaClient;
+    redis: typeof redisClient;
+  }
+}
