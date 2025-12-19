@@ -5,9 +5,9 @@ import cors from '@fastify/cors';
 import swagger from '@fastify/swagger'; 
 import swaggerUi from '@fastify/swagger-ui';
 
-import { prismaClient } from './db/prisma'; 
-import { redisClient } from './cache/redis';
-//import { leaguesRoutes } from './routes/leagues.js';
+import { prismaClient } from './db/prisma.js'; 
+import { redisClient } from './cache/redis.js';
+import { leaguesRoutes } from './routes/leagues.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = '0.0.0.0';
@@ -43,6 +43,8 @@ async function buildApp() {
 
   await fastify.register(swaggerUi, { routePrefix: '/docs' });
 
+  await fastify.register(leaguesRoutes, { prefix: '/api/v1' });
+  
   fastify.decorate('prisma', prismaClient);
   fastify.decorate('redis', redisClient);
 
@@ -62,15 +64,12 @@ async function startServer() {
     fastify.log.error(err);
     // Cleanup database and redis connections on error
     await prismaClient.$disconnect();
-    //redisClient.quit();
     process.exit(1);
   }
 }
 
 startServer();
 
-// Add Fastify Decorator types so TypeScript knows about 'prisma' and 'redis'
-// This is critical for type safety in your application
 declare module 'fastify' {
   interface FastifyInstance {
     prisma: typeof prismaClient;

@@ -1,144 +1,139 @@
-// Import the type FastifyInstance so TypeScript knows what "app" looks like.
 import type { FastifyInstance } from 'fastify';
 
-// Import PrismaClient to talk to your PostgreSQL database.
-import { PrismaClient } from '@prisma/client';
+// // Import PrismaClient to talk to your PostgreSQL database.
+// import { prisma } from '@prisma/client';
 
-// Import your Redis helper functions: read from cache, write to cache.
-import { cacheGet, cacheSet } from '../lib/cache.js';
+// // Import your Redis helper functions: read from cache, write to cache.
+// import { cacheGet, cacheSet } from '../lib/cache.js';
 
-// Create one Prisma instance for this file to run SQL queries.
-const prisma = new PrismaClient();
+// // Create one Prisma instance for this file to run SQL queries.
+// import { prisma } from '../db/prisma.js';
 
-// Export a function that adds all routes related to "leagues".
-export async function leaguesRoutes(app: FastifyInstance) {
+export async function leaguesRoutes(fastify: FastifyInstance) {
 
-  // -------------------------------------------------------------
-  // ROUTE 1: GET /leagues
-  // -------------------------------------------------------------
-  // This route returns all leagues (seasons).
-  app.get('/leagues', async () => {
-    // Fetch all leagues from DB, sorted by newest startDate first.
-    return prisma.league.findMany({ 
-      orderBy: { startDate: 'desc' } 
-    });
+   // -------------------------------------------------------------
+   // ROUTE 1: GET /leagues
+   // -------------------------------------------------------------
+  fastify.get('/leagues', {
+    schema:{
+      summary: 'Get all leagues',
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              startDate: { type: 'string', format: 'date' },
+              endDate: { type: 'string', format: 'date' },
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+      const leagues = await fastify.prisma.league.findMany({
+        orderBy: { startDate: 'desc' }
+      });
+      return leagues;
   });
 
   // -------------------------------------------------------------
   // ROUTE 2: GET /leagues/:leagueId/dates
   // -------------------------------------------------------------
-  // This defines a route with a URL parameter: :leagueId
-  app.get<{
-    Params: { leagueId: string }
-  }>('/leagues/:leagueId/dates', async (req) => {
-    // Extract the leagueId from the URL.
-    const { leagueId } = req.params;
+  fastify.get<{Params: { leagueId: string }}>('/leagues/:leagueId/dates', async (request,reply) => {
+    const { leagueId } = request.params;
+    const cacheKey = `league:dates:${leagueId}`;
 
-    // Prepare a Redis cache key, unique for this league.
-    const key = `league:${leagueId}:dates`;
+    try{
 
-    // Try reading cached dates from Redis.
-    const cached = await cacheGet<any[]>(key);
-    // If Redis has it → return immediately (super fast).
-    if (cached) return cached;
+      const cachedData = await fastify.redis.get(cacheKey);
 
-    // If cache is empty, query the database:
-    // Get all unique dates where games happened for this league.
-    const rows = await prisma.$queryRaw<Array<{ date: string }>>`
-      SELECT DISTINCT DATE("gameDate")::text AS date
-      FROM games 
-      WHERE "leagueId" = ${leagueId}
-      ORDER BY date
-    `;
+      if(cachedData){
+        fastify.log.info({cacheKey},'Dates - Cache HIT');
+        return cachedData;
+      }
 
-    // Save result to Redis for future requests.
-    await cacheSet(key, rows);
+      fastify.log.info({cacheKey},'Dates - Cache MISS');
 
-    // Return the fresh database result.
-    return rows;
+      const games = await fastify.prisma.game.findMany({
+        where: { leagueId: leagueId },
+        include: {
+          entries:{
+            include:{
+              player: true,
+              faction: true
+            }
+          }
+        },
+        orderBy: { gameDate: 'asc' }
+      });
+
+      //Flatten data for a single table view
+      const tableData = games.flatMap(game => 
+        game.entries.map(entry => ({
+          date: game.gameDate,
+          playerName: entry.player.name,
+          factionName: entry.faction.name,
+          points: entry.points
+        }))
+      );
+
+      // Cache for 1 hour
+      await fastify.redis.set(cacheKey, tableData, { ex: 3600 }); 
+
+      return tableData;
+
+    }catch(err){
+      fastify.log.error(err);
+      reply.status(500).send({ error: 'Internet Server Error' });
+    }   
   });
 
   // -------------------------------------------------------------
-  // ROUTE 3: GET /leagues/:leagueId/dates/:isoDate
+  // ROUTE 3: GET /leagues/:leagueId/summary
   // -------------------------------------------------------------
-  // This route gets table for a specific date in a league.
-  app.get<{
-    Params: { leagueId: string; isoDate: string }
-  }>('/leagues/:leagueId/dates/:isoDate', async (req) => {
-    // Extract URL params.
-    const { leagueId, isoDate } = req.params;
+  fastify.get<{Params: { leagueId: string }}>('/leagues/:leagueId/summary', async (request,reply) => {
+    const { leagueId } = request.params;
+    const cacheKey = `league:summary:${leagueId}`;
 
-    //Create a unique cache key for this league + this date.
-    const key = `league:${leagueId}:date:${isoDate}:table`;
+    try{
 
-    // Try reading table data from Redis.
-    const cached = await cacheGet<any[]>(key);
-    if (cached) return cached;
+      const cachedData = await fastify.redis.get(cacheKey);
 
-    // Query database:
-    // For this date → get each player's faction + points.
-    const rows = await prisma.$queryRaw<
-      Array<{ playername: string; factionname: string; points: number }>
-    >`
-      SELECT 
-        p.name AS "playerName",
-        f.name AS "factionName",
-        gpf.points
-      FROM game_player_factions gpf
-      JOIN players p  ON p.id = gpf."playerId"
-      JOIN factions f ON f.id = gpf."factionId"
-      JOIN games g    ON g.id = gpf."gameId"
-      WHERE 
-        g."leagueId" = ${leagueId}
-        AND DATE(g."gameDate") = ${isoDate}
-      ORDER BY "playerName"
-    `;
+      if(cachedData){
+        fastify.log.info({cacheKey},'Summary - Cache HIT');
+        return cachedData;
+      }
 
-    // Save to Redis so next time it loads instantly.
-    await cacheSet(key, rows);
+      fastify.log.info({cacheKey},'Summary - Cache MISS');
 
-    // Return results from the database.
-    return rows;
-  });
+      const summary = await fastify.prisma.gamePlayerFaction.groupBy({
+        by: ['playerId'],
+        where: {
+          game: { leagueId: leagueId }
+        },
+        _sum: { 
+          points: true 
+        }
+      });
 
-  // -------------------------------------------------------------
-  // ROUTE 4: GET /leagues/:leagueId/standings
-  // -------------------------------------------------------------
-  // This route returns the total points per player for the season.
-  app.get<{
-    Params: { leagueId: string }
-  }>('/leagues/:leagueId/standings', async (req) => {
+      //Fetch player names to match IDs
+      const players = await fastify.prisma.player.findMany();
+      const tableData = summary.map(smr => ({
+        playerName: players.find(p => p.id === smr.playerId)?.name || 'Unknown',
+        totalPoints: smr._sum.points || 0
+      }));
 
-    //  Extract leagueId from URL.
-    const { leagueId } = req.params;
+      // Cache for 24 hours
+      await fastify.redis.set(cacheKey, tableData, { ex: 86400 }); 
 
-    // Cache key for standings.
-    const key = `league:${leagueId}:standings`;
+      return tableData;
 
-    // Try Redis first.
-    const cached = await cacheGet<any[]>(key);
-    if (cached) return cached;
-
-    // Query DB:
-    // Sum all points for each player across the whole league.
-    const rows = await prisma.$queryRaw<
-      Array<{ playername: string; totalpoints: number }>
-    >`
-      SELECT 
-        p.name AS "playerName",
-        SUM(gpf.points)::int AS "totalPoints"
-      FROM game_player_factions gpf
-      JOIN players p ON p.id = gpf."playerId"
-      JOIN games g   ON g.id = gpf."gameId"
-      WHERE g."leagueId" = ${leagueId}
-      GROUP BY p.name
-      ORDER BY "totalPoints" DESC, p.name
-    `;
-
-    // Save standings to Redis.
-    await cacheSet(key, rows);
-
-    // Return fresh data.
-    return rows;
+    }catch(err){
+      fastify.log.error(err);
+      reply.status(500).send({ error: 'Internet Server Error' });
+    }
   });
 }

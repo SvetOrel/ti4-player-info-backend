@@ -18,7 +18,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function cacheSet(key: string, value: T, ttlSeconds = 86400){
+export async function cacheSet<T>(key: string, value: T, ttlSeconds = 86400){
   if (!redis) return null;
   try{
     return await redis.set(key, value, { ex: ttlSeconds });
