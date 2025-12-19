@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 import 'dotenv/config';
-import { redis } from "../lib/cache";
+import { redis } from "../lib/cache.js";
 
 export const redisClient = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL,

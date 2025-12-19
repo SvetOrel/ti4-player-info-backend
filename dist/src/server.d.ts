@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { prismaClient } from './db/prisma';
-import { redisClient } from './cache/redis';
+import { prismaClient } from './db/prisma.js';
+import { redisClient } from './cache/redis.js';
 declare module 'fastify' {
     interface FastifyInstance {
         prisma: typeof prismaClient;
