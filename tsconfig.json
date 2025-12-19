@@ -4,6 +4,7 @@
     "module": "ES2022",
     "target": "ES2022",
     "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
     "moduleResolution": "Bundler",
     "outDir": "dist",
     "rootDir": ".",
