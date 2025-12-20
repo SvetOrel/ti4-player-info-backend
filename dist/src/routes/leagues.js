@@ -58,7 +58,7 @@ export async function leaguesRoutes(fastify) {
                 orderBy: { gameDate: 'asc' }
             });
             //Flatten data for a single table view
-            const tableData = games.flatMap(game => game.entries.map(entry => ({
+            const tableData = games.flatMap((game) => game.entries.map((entry) => ({
                 date: game.gameDate,
                 playerName: entry.player.name,
                 factionName: entry.faction.name,
@@ -97,8 +97,8 @@ export async function leaguesRoutes(fastify) {
             });
             //Fetch player names to match IDs
             const players = await fastify.prisma.player.findMany();
-            const tableData = summary.map(smr => ({
-                playerName: players.find(p => p.id === smr.playerId)?.name || 'Unknown',
+            const tableData = summary.map((smr) => ({
+                playerName: players.find((p) => p.id === smr.playerId)?.name || 'Unknown',
                 totalPoints: smr._sum.points || 0
             }));
             // Cache for 24 hours
