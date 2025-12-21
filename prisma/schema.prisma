@@ -9,19 +9,47 @@ generator client {
 }
 
 model Player {
-  id      String               @id @default(uuid())
-  name    String               @unique
-  entries GamePlayerFaction[]
+  id        String             @id @default(uuid())
+  name      String             @unique
+  pictureId String?            @unique
+  picture   Picture?           @relation(fields: [pictureId], references: [id])
+  entries   GamePlayerFaction[]
 
   @@map("players")
+}
+
+model Picture {
+  id        String             @id @default(uuid())
+  url       String             @unique
+  player    Player?            @unique
+
+  @@map("pictures")
 }
 
 model Faction {
   id      String               @id @default(uuid())
   name    String               @unique
+  iconId  String?               @unique
+  icon    Icon?                 @relation(fields: [iconId], references: [id])
   entries GamePlayerFaction[]
 
   @@map("factions")
+}
+
+model Icon {
+  id      String               @id @default(uuid())
+  url     String               @unique
+  faction Faction?
+
+  @@map("icons")
+}
+
+model Condition {
+  id       String               @id @default(uuid())
+  name     String               @unique
+  games    Game[]
+
+  @@map("conditions")
 }
 
 model League {
