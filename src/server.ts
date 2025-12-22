@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import Fastify, { fastify } from 'fastify';
-
+import path from 'path';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger'; 
 import swaggerUi from '@fastify/swagger-ui';
+import fastifyStatic from '@fastify/static';
 
 import { prismaClient } from './db/prisma.js'; 
 import { redisClient } from './cache/redis.js';
@@ -44,6 +45,11 @@ async function buildApp() {
   await fastify.register(swaggerUi, { routePrefix: '/docs' });
 
   await fastify.register(leaguesRoutes, { prefix: '/api/v1' });
+
+  await fastify.register(fastifyStatic, {
+    root: path.join(process.cwd(), 'public'),
+    prefix: '/public/',
+  });
   
   fastify.decorate('prisma', prismaClient);
   fastify.decorate('redis', redisClient);

@@ -21,14 +21,14 @@ model Player {
 model Picture {
   id        String             @id @default(uuid())
   url       String             @unique
-  player    Player?            @unique
+  player    Player?            
 
   @@map("pictures")
 }
 
 model Faction {
-  id      String               @id @default(uuid())
-  name    String               @unique
+  id      String                @id @default(uuid())
+  name    String                @unique
   iconId  String?               @unique
   icon    Icon?                 @relation(fields: [iconId], references: [id])
   entries GamePlayerFaction[]
@@ -47,7 +47,7 @@ model Icon {
 model Condition {
   id       String               @id @default(uuid())
   name     String               @unique
-  games    Game[]
+  entries    GamePlayerFaction[]
 
   @@map("conditions")
 }
@@ -63,14 +63,15 @@ model League {
 }
 
 model Game {
-  id         String   @id @default(uuid())
-  leagueId   String
-  league     League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  gameDate   DateTime
-  isLongGame Boolean  @default(false)
-  winPoints  Int      @default(10)
-  endRound   Int?
-  entries    GamePlayerFaction[]
+  id          String   @id @default(uuid())
+  name        String?
+  leagueId    String
+  league      League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  gameDate    DateTime
+  status      String
+  isLongGame  Boolean  @default(false)
+  winPoints   Int      @default(10)
+  entries     GamePlayerFaction[]
 
   @@index([leagueId, gameDate])
   @@map("games")
@@ -81,7 +82,10 @@ model GamePlayerFaction {
   gameId    String
   playerId  String
   factionId String
-  points    Int
+  points    Int     @default(0)
+
+  conditionId String?
+  condition   Condition? @relation(fields: [conditionId], references: [id])
 
   game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
   player  Player  @relation(fields: [playerId], references: [id], onDelete: Restrict)
