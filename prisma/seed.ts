@@ -82,6 +82,8 @@ async function main() {
   for(let i = 0; i < gameCsv.length; i++) {
     const row = gameCsv[i];
 
+    if(!row) continue;
+    
     if(row.Game && row.Game.startsWith('Game')) {
 
       const dateRow = gameCsv[i + 1];
@@ -103,15 +105,18 @@ async function main() {
       const pId = playerMap[row.Players];
       const fId = factionMap[row.Factions || ""];
       const cId = condMap[row.Condition || ""];
-      await prisma.gamePlayerFaction.create({
-        data: {
-          gameId: cuttentGameId, 
-          playerId: pId,
-          factionId: fId,
-          points: parseInt(row.Points || '0'),
-          conditionId: cId,
-        },
-      });
+
+      if(pId && fId && cId) {
+        await prisma.gamePlayerFaction.create({
+          data: {
+            gameId: cuttentGameId, 
+            playerId: pId,
+            factionId: fId,
+            points: parseInt(row.Points || '0'),
+            conditionId: cId,
+          },
+        });
+      }
     }
   }
 
@@ -138,9 +143,9 @@ main()
   }
 
   interface CsvGameRow {
-  Game?: string;
-  Players?: string;  
-  Factions?: string;
-  Points?: string;
-  Condition?: string;
-}
+    Game?: string;
+    Players?: string;  
+    Factions?: string;
+    Points?: string;
+    Condition?: string;
+  }
