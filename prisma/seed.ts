@@ -6,6 +6,11 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new pg.Pool({ connectionString });
@@ -34,7 +39,7 @@ async function main() {
 
   await Promise.all(conditionCsv.map(c =>  c.Name && prisma.condition.create({ data: { name: c.Name }})));
   console.log('⚙️  Seeded conditions.');
-
+  console.log('## factionCsv: ' + JSON.stringify(factionCsv));
   for(const fac of factionCsv) {
     const fileName = fac.Name.toLowerCase().replace(/\s+/g, '_') + '.png';
     await prisma.faction.create({ 
@@ -44,6 +49,8 @@ async function main() {
       } 
     });
   }
+
+  console.log('## playerCsv: ' + playerCsv);
 
   for(const plr of playerCsv) {
     const fileName = plr.Name.toLowerCase().replace(/\s+/g, '_') + '.png';
@@ -78,7 +85,7 @@ async function main() {
   );
 
   let cuttentGameId: string | null = null;
-
+  console.log('## gameCsv: ' + gameCsv);
   for(let i = 0; i < gameCsv.length; i++) {
     const row = gameCsv[i];
 
@@ -93,7 +100,7 @@ async function main() {
         data: {
           name: row.Game,
           leagueId: league.id,
-          gameDate: new Date(dateRow?.Game || Date.now()),
+          gameDate: parseCsvDate(dateRow?.Game || ""),
           status: statusRow?.Game?.toUpperCase() === 'PASSED' ? 'Passed' : 'Future',
         },
       });
@@ -136,6 +143,24 @@ main()
     await prisma.$disconnect();
     await pool.end();
   });
+
+  function parseCsvDate(dateString: string): Date {
+  const [day, month, year] = dateString.split('/').map(Number);
+  
+  if (!day || !month || !year) {
+    console.error(`❌ Invalid date format: "${dateString}". Using current date as fallback.`);
+    return new Date();
+  }
+
+  
+  const date = new Date(year, month - 1, day);
+  
+  if (isNaN(date.getTime())) {
+    console.error(`❌ Failed to parse date: "${dateString}". Using current date as fallback.`);
+    return new Date();
+  }
+  return date;
+}
 
   interface CsvRow {
     Name: string;
